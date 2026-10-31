@@ -1,0 +1,5 @@
+modelo,accuracy,balanced_accuracy,precision_1,recall_1,f1_1,tiempo_s
+Dummy,0.8998571428571429,0.5,0.0,0.0,0.0,0.12
+LogisticRegression,0.8998571428571429,0.5,0.0,0.0,0.0,0.18
+RandomForest,0.8998571428571429,0.5,0.0,0.0,0.0,1.57
+HistGradientBoosting,0.8998571428571429,0.5,0.0,0.0,0.0,4.07

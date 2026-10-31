@@ -1,0 +1,547 @@
+﻿\documentclass[11pt,a4paper]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{setspace}
+
+\geometry{left=2.6cm,right=2.6cm,top=2.5cm,bottom=2.5cm}
+\definecolor{azul}{HTML}{17365D}
+\hypersetup{colorlinks=true,linkcolor=azul,urlcolor=azul}
+\setstretch{1.13}
+\setlength{\parskip}{5pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small Fundamentos de Inteligencia Artificial}
+\fancyhead[R]{\small Yachay Tech}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{14pt}
+
+\begin{document}
+
+% ==================================================
+% PORTADA
+% ==================================================
+
+\begin{titlepage}
+\centering
+\vspace*{1.5cm}
+
+{\Large\bfseries UNIVERSIDAD YACHAY TECH\par}
+\vspace{0.3cm}
+{\large Maestría en Ciencia de Datos\par}
+
+\vspace{1.2cm}
+\textcolor{azul}{\rule{\textwidth}{1.5pt}}
+
+\vspace{0.8cm}
+{\Huge\bfseries
+Predicción de alertas de\\[0.2cm]
+desnutrición infantil\par}
+
+\vspace{0.5cm}
+{\Large
+Evaluación comparativa de modelos de\\
+aprendizaje automático y análisis estocástico\par}
+
+\vspace{0.8cm}
+\textcolor{azul}{\rule{\textwidth}{1.5pt}}
+
+\vspace{1.4cm}
+
+{\large\textbf{Asignatura}\par}
+{\large Fundamentos de Inteligencia Artificial\par}
+
+\vspace{0.8cm}
+
+{\large\textbf{Autor}\par}
+{\Large\bfseries Mat. Héctor Alexander Román Potosí\par}
+
+\vspace{0.8cm}
+
+{\large\textbf{Docente}\par}
+{\large Ph.D. Manuel Eugenio Morocho Cayamcela\par}
+
+\vfill
+
+{\large Examen de medio semestre -- IISEM2026\par}
+{\large 31 de octubre de 2026\par}
+
+\end{titlepage}
+
+% ==================================================
+% RESUMEN
+% ==================================================
+
+\section*{Resumen}
+
+Este trabajo estudia un problema de clasificación binaria
+de alertas de desnutrición infantil en Ecuador mediante un
+conjunto de datos sintético de 70\,000 observaciones de
+entrenamiento y 30\,000 observaciones de prueba.
+
+Se evaluaron clasificadores lineales, ensambles de árboles,
+Gradient Boosting, una red neuronal multicapa y enfoques
+probabilísticos. Se priorizó la exactitud
+(\emph{accuracy}), métrica oficial de la competencia.
+
+Los experimentos no identificaron una mejora reproducible
+frente al clasificador de clase mayoritaria, cuyo accuracy
+en validación fue aproximadamente del 89.99\%.
+
+La solución enviada a Kaggle mediante Random Forest
+alcanzó un accuracy público de 91.1255\%.
+Sin embargo, todas sus predicciones fueron de clase cero,
+por lo que su desempeño equivale al baseline.
+
+Se presenta una interpretación estadística de este
+resultado y se discuten las limitaciones del conjunto
+sintético y de la evaluación mediante accuracy.
+
+\noindent\textbf{Palabras clave:}
+clasificación binaria, Random Forest, XGBoost,
+desbalance de clases, inferencia estocástica,
+accuracy, Kaggle.
+
+\tableofcontents
+\newpage
+
+% ==================================================
+\section{Introducción}
+% ==================================================
+
+La identificación de alertas de desnutrición infantil
+constituye una tarea de clasificación supervisada.
+A partir de características individuales se busca
+estimar una variable de respuesta binaria.
+
+El presente trabajo utiliza un conjunto sintético
+publicado para la competencia académica
+\emph{Ecuador Infant Malnutrition Competition
+(IISEM2026 MCD)}.
+
+Es importante distinguir la naturaleza académica de
+estos datos de una herramienta clínica:
+las etiquetas sintéticas no equivalen a diagnósticos
+médicos verificados.
+
+\subsection{Objetivo general}
+
+Comparar diversos modelos de aprendizaje automático
+para maximizar la exactitud de clasificación sobre
+datos no observados, aplicando procedimientos
+reproducibles de entrenamiento y validación.
+
+\subsection{Objetivos específicos}
+
+\begin{itemize}
+\item Examinar la estructura y calidad de los datos.
+\item Construir un baseline de clase mayoritaria.
+\item Comparar algoritmos de distintas familias.
+\item Evaluar el efecto del desbalance y los umbrales.
+\item Estudiar una explicación probabilística
+      del rendimiento observado.
+\item Generar una entrega válida para Kaggle.
+\end{itemize}
+
+% ==================================================
+\section{Descripción de los datos}
+% ==================================================
+
+La base de entrenamiento contiene 70\,000 registros
+y seis variables predictoras:
+
+\begin{center}
+\begin{tabular}{ll}
+\toprule
+Variable & Descripción\\
+\midrule
+\texttt{edad\_meses} & Edad en meses\\
+\texttt{sexo} & Categoría de sexo\\
+\texttt{region} & Región geográfica\\
+\texttt{nivel\_educacion\_madre} & Escolaridad materna\\
+\texttt{peso\_kg} & Peso en kilogramos\\
+\texttt{talla\_cm} & Talla en centímetros\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+La variable objetivo es
+\texttt{alerta\_desnutricion}, con valores cero y uno.
+
+\subsection{Distribución de clases}
+
+Se observaron 62\,991 registros de clase cero
+y 7\,009 de clase uno:
+
+\[
+P(Y=0)\approx0.899871,
+\qquad
+P(Y=1)\approx0.100129.
+\]
+
+Existe, por tanto, un importante desbalance de clases.
+
+\subsection{Calidad de los datos}
+
+Se identificaron valores faltantes en
+\texttt{peso\_kg} (aproximadamente 4.96\%) y
+\texttt{talla\_cm} (aproximadamente 10.07\%).
+
+También se observaron 3\,921 edades negativas
+y 3\,163 edades superiores a 24 meses.
+
+Estas anomalías se analizaron sin eliminar
+arbitrariamente observaciones etiquetadas.
+
+% ==================================================
+\section{Metodología}
+% ==================================================
+
+\subsection{Preparación}
+
+Se utilizó imputación de mediana en las variables
+numéricas y codificación One-Hot para las categóricas.
+
+El preprocesamiento se incorporó dentro de
+\texttt{Pipeline} y \texttt{ColumnTransformer}
+para impedir que los estadísticos de validación
+intervinieran en el ajuste de entrenamiento.
+
+\subsection{Métrica principal}
+
+La métrica oficial es:
+
+\[
+\operatorname{Accuracy}
+=
+\frac{TP+TN}{TP+TN+FP+FN}.
+\]
+
+Se calcularon además recall, F1, ROC-AUC y
+balanced accuracy como métricas diagnósticas.
+
+\subsection{Modelo de referencia}
+
+El clasificador de clase mayoritaria predice:
+
+\[
+\widehat{Y}(x)=0.
+\]
+
+Su exactitud esperada se aproxima a la proporción
+de observaciones pertenecientes a la clase cero.
+
+\subsection{Modelos estudiados}
+
+Se experimentó con DummyClassifier, regresión
+logística, Random Forest, Extra Trees,
+HistGradientBoosting, LightGBM, CatBoost,
+XGBoost y una red neuronal MLP.
+
+Adicionalmente se analizaron probabilidades
+beta-binomiales y un modelo estocástico Probit.
+
+% ==================================================
+\section{Resultados experimentales}
+% ==================================================
+
+\subsection{Validación cruzada}
+
+En tres particiones estratificadas se obtuvieron:
+
+\begin{center}
+\small
+\begin{tabular}{lrrr}
+\toprule
+Modelo & Accuracy & Recall & ROC-AUC\\
+\midrule
+Dummy & 0.89987 & 0.00000 & 0.50000\\
+Random Forest & 0.89987 & 0.00000 & 0.65429\\
+HistGradientBoosting & 0.89987 & 0.00000 & 0.65474\\
+RF balanceado & 0.45807 & 0.85633 & 0.65305\\
+HGB balanceado & 0.42281 & 0.92338 & 0.65003\\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Los modelos balanceados incrementaron el recall
+de la clase positiva, pero redujeron notablemente
+la exactitud, por lo que no fueron seleccionados
+para la métrica de la competencia.
+
+\subsection{Comparación competitiva}
+
+En un torneo adicional se evaluaron Random Forest,
+Extra Trees, LightGBM y CatBoost.
+
+Ninguna configuración superó el accuracy del
+clasificador mayoritario.
+
+La auditoría de las predicciones con mayor riesgo
+tampoco encontró grupos con una precisión
+suficientemente alta para justificar el cambio
+de cero a uno.
+
+\subsection{XGBoost}
+
+Se realizó una evaluación mediante cinco
+particiones estratificadas.
+
+El accuracy global fuera de muestra por fold
+(\emph{out-of-fold}) fue:
+
+\[
+A_{\mathrm{XGB}}=0.899871.
+\]
+
+El ROC-AUC global fue aproximadamente 0.653106.
+
+Los cinco folds predijeron exclusivamente
+la clase cero con el umbral 0.5.
+
+\subsection{Red neuronal}
+
+Una red neuronal MLP con capas ocultas
+de 32 y 16 neuronas obtuvo ROC-AUC aproximado
+de 0.599958, sin mejorar el accuracy
+de la clase mayoritaria.
+
+% ==================================================
+\section{Análisis matemático y estocástico}
+% ==================================================
+
+\subsection{Regla bayesiana}
+
+Para una clasificación binaria con igual costo
+para ambos tipos de error, la regla óptima
+según accuracy es:
+
+\[
+\widehat y(x)=
+\begin{cases}
+1,&P(Y=1\mid X=x)>0.5,\\
+0,&P(Y=1\mid X=x)\leq0.5.
+\end{cases}
+\]
+
+Por tanto, un modelo puede discriminar probabilidades
+sin que ello produzca predicciones positivas.
+
+\subsection{Modelo beta-binomial}
+
+Se estimaron proporciones condicionales de alerta
+por región y escolaridad materna mediante
+una distribución beta-binomial.
+
+El modelo obtuvo ROC-AUC aproximado de 0.630545
+y Brier Score de 0.087296.
+
+Ninguno de los grupos analizados presentó
+una probabilidad posterior media cercana a 0.5.
+
+\subsection{Modelo Probit}
+
+Para estudiar el carácter estocástico de las
+etiquetas, se planteó:
+
+\[
+Z=r(X)+\varepsilon,
+\qquad
+\varepsilon\sim\mathcal N(0,1),
+\]
+
+con regla de etiquetado determinada por un umbral
+\(c\). En esa aproximación:
+
+\[
+P(Y=1\mid X=x)=\Phi(r(x)-c),
+\]
+
+donde \(\Phi\) es la función de distribución
+acumulada normal estándar.
+
+El experimento estimó:
+
+\[
+\widehat c=1.065837,
+\qquad
+\max_x\widehat P(Y=1\mid X=x)=0.143249.
+\]
+
+El Probit obtuvo ROC-AUC 0.649634 y
+Brier Score 0.086889.
+
+Como la función de riesgo reconstruida cumple
+\(r(x)\leq0\), este modelo estima probabilidades
+inferiores a 0.5 para todas las observaciones.
+
+\textbf{Limitación:} la reconstrucción del mecanismo
+generador es aproximada. Este resultado no prueba
+que ningún algoritmo imaginable pueda superar
+el baseline sobre cualquier muestra.
+
+% ==================================================
+\section{Comprobación de generalización}
+% ==================================================
+
+Se compararon las distribuciones de las variables
+predictoras entre entrenamiento y prueba.
+
+Un clasificador entrenado para distinguir
+ambos conjuntos obtuvo:
+
+\[
+\mathrm{ROC\text{-}AUC}_{\mathrm{origen}}
+=0.495746.
+\]
+
+No se detectó una separación importante
+entre las características observadas de los dos
+conjuntos.
+
+La estimación beta-binomial del accuracy de
+predecir siempre cero sobre el test completo fue:
+
+\[
+\widehat A_{\mathrm{test}}=0.899172.
+\]
+
+El intervalo predictivo aproximado al 95\%
+fue de 89.5161\% a 90.3182\%.
+
+Este intervalo depende de los supuestos del
+modelo utilizado y no constituye garantía
+de la puntuación final.
+
+% ==================================================
+\section{Resultado de Kaggle}
+% ==================================================
+
+El modelo Random Forest se entrenó sobre las
+70\,000 observaciones etiquetadas y generó
+30\,000 predicciones.
+
+El archivo entregado cumplió la estructura:
+
+\begin{center}
+\texttt{ID, alerta\_desnutricion}
+\end{center}
+
+Las 30\,000 predicciones fueron cero.
+
+\subsection{Puntuación pública}
+
+La plataforma registró el envío con
+referencia \texttt{57815647} y obtuvo:
+
+\[
+\boxed{
+\mathrm{Accuracy}_{\mathrm{publico}}
+=0.911254675280
+}
+\]
+
+Esto equivale a aproximadamente 91.1255\%
+de exactitud sobre la fracción pública.
+
+\textbf{Interpretación:} dado que las predicciones
+fueron todas cero, esta puntuación es exactamente
+la del baseline constante y no evidencia una
+mejora de Random Forest frente a DummyClassifier.
+
+La puntuación privada no estaba disponible
+en el momento de documentar el resultado.
+
+% ==================================================
+\section{Discusión}
+% ==================================================
+
+Los resultados muestran que aumentar la
+complejidad del modelo no produjo ganancias
+de accuracy bajo los protocolos evaluados.
+
+El fuerte desbalance de clases y el mecanismo
+estocástico sintético proporcionan una
+explicación coherente para esta observación.
+
+El ROC-AUC superior a 0.5 en diversos modelos
+indica cierta capacidad de ordenación de riesgos,
+pero no es suficiente para obtener más aciertos
+al aplicar el umbral convencional.
+
+El resultado de 91.1255\% corresponde a
+una métrica de competencia sobre datos sintéticos.
+No debe interpretarse como una validación
+de utilidad clínica del modelo.
+
+% ==================================================
+\section{Conclusiones}
+% ==================================================
+
+\begin{enumerate}
+\item Se construyó un flujo reproducible
+de clasificación supervisada.
+\item Se analizaron problemas de calidad,
+desbalance y posibles anomalías.
+\item Se compararon distintas familias de modelos,
+incluyendo aprendizaje profundo y enfoques
+probabilísticos.
+\item Ningún modelo demostró una mejora consistente
+de accuracy frente a la clase mayoritaria.
+\item El análisis estocástico permitió formular
+una explicación matemática del comportamiento
+de los clasificadores.
+\item Se generó y validó una submission oficial
+con accuracy público de 91.1255\%.
+\end{enumerate}
+
+\section*{Reproducibilidad}
+
+Se adjuntan el notebook ejecutable, los scripts
+de experimentación, los resultados principales,
+los archivos oficiales de entrada y la evidencia
+de la participación en Kaggle.
+
+No se emplearon etiquetas ocultas del test
+para ajustar, seleccionar o evaluar los modelos.
+
+% ==================================================
+\begin{thebibliography}{9}
+
+\bibitem{breiman}
+Breiman, L. (2001).
+\emph{Random Forests}.
+Machine Learning, 45, 5--32.
+
+\bibitem{grinsztajn}
+Grinsztajn, L., Oyallon, E. y Varoquaux, G.
+(2022).
+\emph{Why do tree-based models still outperform
+deep learning on typical tabular data?}
+NeurIPS.
+
+\bibitem{mcel}
+McElfresh, D. y colaboradores (2023).
+\emph{When Do Neural Nets Outperform
+Boosted Trees on Tabular Data?}
+NeurIPS.
+
+\bibitem{repo}
+Morocho Cayamcela, M. E.
+\emph{ArtificialIntelligence: repositorio
+académico y generador de datos sintéticos}.
+\url{https://github.com/eugeniomorocho/ArtificialIntelligence}
+
+\end{thebibliography}
+
+\end{document}

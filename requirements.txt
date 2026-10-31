@@ -1,0 +1,12 @@
+﻿numpy
+pandas
+scipy
+scikit-learn
+matplotlib
+lightgbm
+catboost
+xgboost
+nbformat
+nbconvert
+ipykernel
+jupyter
